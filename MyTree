@@ -1,0 +1,95 @@
+import javax.lang.model.element.Element;
+import javax.swing.RootPaneContainer;
+
+public class MyTree {
+	private Node sentinel, root;
+	
+	public MyTree(){
+		sentinel = new Node();
+		root = new Node();
+		root = sentinel;
+		sentinel.left = root;
+	}
+	
+	private class Node{
+		public int key;
+		public Node left, right;
+		public Node(){
+			key = 0;
+			left = sentinel;
+			right = sentinel;
+		}
+	}
+	
+	private class E{
+		public boolean heapShape, isComplete;
+		public int h;
+		public E(boolean hs, boolean ic, int i){
+			heapShape = hs;
+			isComplete = ic;
+			h= i;
+		}
+	}
+	
+	public boolean heapShape(){
+		return helper(root).heapShape;
+	}
+	
+	public E helper(Node n){
+		if(n == sentinel)
+			return new E(true, true,  -1);
+		
+		E EL = helper(n.left);
+		E ER = helper(n.right);
+		
+		// both left and right are complete
+		if(EL.isComplete && ER.isComplete && EL.h == ER.h)
+			return new E(true, true, 1 + EL.h);
+		
+		// left complete, right complete with correct height
+		else if(EL.isComplete && ER.isComplete && EL.h -1 == ER.h) {
+			return new E(true, false, 1 + EL.h);
+		}
+		
+		// left complete, right heapsorted with correct height
+		else if(EL.isComplete && ER.heapShape && EL.h == ER.h)
+			return new E(true, false, EL.h);
+		
+		//left heapsorted and right complete with correct height
+		else if(EL.heapShape && ER.isComplete && (EL.h - 1 == ER.h))
+			return new E(true, false, EL.h);
+
+		
+		else return new E(false, false, 0);
+		
+	}
+	
+	public static void main(String [] args){
+		MyTree tree = new MyTree();
+		Node e1 = tree.new Node();
+		tree.root = e1;
+		Node e2 = tree.new Node();
+		e1.left = e2;
+		Node e3 = tree.new Node();
+		e1.right = e3;
+		
+		Node e4 = tree.new Node();
+		e2.left = e4;
+		
+		Node e5 = tree.new Node();
+		e2.right =e5;
+		
+		Node e6 = tree.new Node();
+		e3.left = e6;
+		
+		Node e7 = tree.new Node();
+		e3.right = e7;
+		
+		Node e8 = tree.new Node();
+		e4.left = e8;
+		
+		System.out.println(tree.heapShape());
+	}
+	
+
+}
