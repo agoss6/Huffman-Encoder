@@ -1,0 +1,265 @@
+import java.io.*;
+
+import java.lang.reflect.InvocationTargetException;
+import java.nio.file.attribute.UserPrincipalLookupService;
+
+import javax.lang.model.element.Element;
+import javax.swing.JFileChooser;
+
+import java.util.ArrayList;
+import java.util.BitSet;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.PriorityQueue;
+import java.util.Queue;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
+import javax.swing.SwingUtilities;
+import javax.xml.stream.events.EndDocument;
+
+import org.omg.CORBA.PRIVATE_MEMBER;
+import org.omg.CORBA.PUBLIC_MEMBER;
+import org.omg.CORBA.SystemException;
+@SuppressWarnings("unused")
+
+
+// Class to huffman encode and decode a document to reduce its file size.
+public class HuffmanEncoder {
+	
+	// Main method to compress and decompress
+	public static void main(String[] args) throws IOException{
+		
+		// Holds the original text file path
+		//String originalFilePath = getFilePath();
+		String originalFilePath = "/Users/Sandy/Documents/workspace/Lab3/src/TwoCharacterSameFrequency.txt";
+		
+		// Holds the compressed file path
+		//String compressedFilePath = getFilePath();
+		String compressedFilePath = "/Users/Sandy/Documents/workspace/Lab3/src/TwoCharacterSameFrequency_compressed.txt";
+		
+		// Holds the the decompressed file path
+		//String decompressedFilePath = getFilePath();
+		String decompressedFilePath = "/Users/Sandy/Documents/workspace/Lab3/src/TwoCharacterSameFrequency_decompressed.txt";
+		
+		// create a frequency table of the characters in a document
+		Map<String, Integer> table = frequencyTable(originalFilePath);
+
+		// create a queue containing a singleton tree for each key in the frequency table
+		PriorityQueue<BinaryTree<Node<String, Integer>>> queue = treeQueue(table);
+		
+		// create a binary tree that is made up of all the singletons that were in queue
+		BinaryTree<Node<String, Integer>> codeTree = combineSingletonTrees(queue);
+
+		// creates a map of all the codes for each character in a codeTree
+		Map<String, String> codeMap = codeMapCreator(codeTree); 
+
+		// compress and decompress the original file
+		compress(codeMap, originalFilePath, compressedFilePath);
+		decompress(codeTree, compressedFilePath, decompressedFilePath);
+		
+	}
+
+	
+	public static void compress(Map<String, String> codeMap, String originalFilePath, String compressedFilePath) throws IOException{
+		// compress the file
+		BufferedReader inputFile = new BufferedReader(new FileReader(originalFilePath));
+		BufferedBitWriter outputFile = new BufferedBitWriter(compressedFilePath);
+
+		// read the characters one by one and write their coded bit representations one by one to and output file
+		try{
+			int cInt = inputFile.read();
+
+			while(cInt != -1){
+				String compressedCharacter = codeMap.get(Character.toString((char)cInt));
+				for(int i=0; i < compressedCharacter.length(); i++){
+					int bit = Integer.parseInt(compressedCharacter.substring(i, i+1));
+					outputFile.writeBit(bit);
+				}
+
+				cInt = inputFile.read();
+			}
+
+		} 
+		finally{
+			inputFile.close();
+			outputFile.close();	
+		}
+	}
+
+
+	public static void decompress(BinaryTree<Node<String, Integer>> codeTree, String compressedFilePath, String decompressedFilePath) throws IOException{
+		//decompress a file
+		BufferedBitReader inputFile = new BufferedBitReader(compressedFilePath);
+		BufferedWriter outputFile = new BufferedWriter(new FileWriter(decompressedFilePath));
+		BinaryTree<Node<String, Integer>> root = codeTree;  // keep track of the root so you can go back to it
+		
+		int bit = inputFile.readBit();
+		try{
+			while(bit != -1){	
+				// while not at a leaf
+				while(codeTree.getLeft() != null && codeTree.getRight() != null){
+					// go left if 0
+					if(bit==0){
+						bit = inputFile.readBit();
+						codeTree = codeTree.getLeft();
+					}
+					//go right if 1
+					else{
+						bit = inputFile.readBit();
+						codeTree = codeTree.getRight();
+					}
+				}
+				outputFile.write(codeTree.getValue().getCharacter());
+				codeTree = root; // back to the top
+			}
+		}
+		
+		finally{
+			inputFile.close();
+			outputFile.close();
+		}
+	}
+	
+	
+	// method to return a map of the characters in a document and their frequencies
+	public static Map<String, Integer> frequencyTable(String inputFilePath) throws IOException{
+		Map<String, Integer> table = new HashMap<String, Integer>(); // map to fill in
+		BufferedReader inputFile = new BufferedReader(new FileReader(inputFilePath)); // open file
+		
+		// Read the file one character at a time. If the character isn't in the frequency table,
+		// add it with frequency one. Otherwise increment its frequency.
+		try {
+			int cInt = inputFile.read();   // read the next character's integer representation
+			while (cInt != -1) {
+				// Code to process the character whose Unicode value is cInt
+				String key = Character.toString((char)cInt);
+				if(!table.containsKey(key))
+					table.put(key, 1);
+				else{
+					int freq = table.get(key);
+					table.put(key, freq+1);
+				}
+				cInt = inputFile.read();    // read the next character's integer representation
+			}
+		}
+		finally {
+			inputFile.close();
+		}
+		return table;
+	}
+	
+	
+	// method that takes a map and creates a singleton tree for each entry,
+	// putting the trees into a min-priority queue
+	public static PriorityQueue<BinaryTree<Node<String, Integer>>> treeQueue(Map<String, Integer> m){
+		TreeComparator comparator = new TreeComparator(); // comparator to compare two Binary Trees
+		
+		// Minimum priority queue with initial size of 256 (maximum size needed for a general document)
+		PriorityQueue<BinaryTree<Node<String, Integer>>> queue = new PriorityQueue<BinaryTree<Node<String, Integer>>>(256, comparator); 
+		
+		// Code to iterate over a set of the keys in the frequency table, create a node corresponding to each entry,
+		// create a singleton Binary Tree with the node, and put the singleton into the priority queue.
+		Set<String> keys = m.keySet(); 
+		Iterator<String> iter = keys.iterator();
+
+		while(iter.hasNext()){
+			String currentCharacter = iter.next();
+			Node<String, Integer> newCharacterNode = new Node<String, Integer>(currentCharacter, m.get(currentCharacter));
+			BinaryTree<Node<String, Integer>> singleton = new BinaryTree<Node<String, Integer>>(newCharacterNode);
+			queue.add(singleton);
+		}
+		
+		// Single and no character case: add a filler node until there are at least two singleton trees in the queue.
+		// This way, when the singletons are combined, the character will be a leaf and it will have a legal code.
+		// The empty case will do nothing because it is already maximally compressed.
+		while(queue.size() <= 1){
+			Node<String, Integer> fodderNode = new Node<String, Integer>("\0", 0);
+			BinaryTree<Node<String, Integer>> fodder = new BinaryTree<Node<String, Integer>>(fodderNode);
+			queue.add(fodder);
+		}
+	
+		return queue;
+	}
+
+
+	
+	// method that takes a priority queue of singleton trees and returns a single binary tree
+	// made up of the singleton trees
+	public static BinaryTree<Node<String, Integer>> combineSingletonTrees(PriorityQueue<BinaryTree<Node<String, Integer>>> q){
+		
+		// While loop runs while there are still uncombined trees in the priority queue.
+		while(q.size() > 1){
+			//get the two smallest valued characters from the min-priority queue
+			BinaryTree<Node<String, Integer>> t1,t2;
+			t1 = q.poll();  // smallest
+			t2 = q.poll();	// second smallest
+			
+			// Node with null value and frequency that is the sum of its children's frequencies.
+			Integer combinedFrequency = t1.getValue().getFrequency() + t2.getValue().getFrequency();
+			Node<String, Integer> newRoot = new Node<String, Integer>(null, combinedFrequency);
+			
+			BinaryTree<Node<String, Integer>> newTree = new BinaryTree<Node<String,Integer>>(newRoot, t1, t2);
+			q.add(newTree);
+		}
+		return q.poll();
+	}
+	
+	
+	// Method that takes a binary tree and creates a map with characters for keys and their codes as values.
+	public static Map<String, String> codeMapCreator(BinaryTree<Node<String, Integer>> bt){
+		Map<String, String> codeMap = new HashMap<String, String>();
+		codeMapHelper(bt, codeMap, "");
+		return codeMap;
+	}
+	
+	
+	// helper method for the codeMapCreator method
+	public static void codeMapHelper(BinaryTree<Node<String, Integer>> bt, Map<String, String> codeMap, String s){
+		// If the node is a leaf, it is a character. Put it into the map.
+		if(bt.getLeft() == null && bt.getRight() == null)
+			codeMap.put(bt.getValue().getCharacter(), s);
+		
+		// Otherwise, if you go left append a 0 to it's code.
+		if(bt.hasLeft()){
+			codeMapHelper(bt.getLeft(), codeMap, s + '0');
+		}
+		
+		// Otherwise you went right, so append a 1 to its code.
+		if(bt.hasRight()){
+			codeMapHelper(bt.getRight(), codeMap, s + '1');
+		}
+		
+	}
+	
+
+	// provided method to select a file and get its path
+	public static String getFilePath() {
+		final AtomicReference<String> result = new AtomicReference<>();
+
+		try {
+			SwingUtilities.invokeAndWait(new Runnable() {
+				public void run() {
+					JFileChooser fc = new JFileChooser();
+
+					int returnVal = fc.showOpenDialog(null);
+					if (returnVal == JFileChooser.APPROVE_OPTION) {
+						File file = fc.getSelectedFile();
+						String pathName = file.getAbsolutePath();
+						result.set(pathName);
+					}
+					else
+						result.set("");
+				}
+			});
+		} catch (InvocationTargetException | InterruptedException e) {
+			e.printStackTrace();
+		}
+
+		// Create a file chooser.
+		return result.get();
+	}
+}
+
