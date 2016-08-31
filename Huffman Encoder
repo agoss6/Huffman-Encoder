@@ -33,17 +33,14 @@ public class HuffmanEncoder {
 	public static void main(String[] args) throws IOException{
 		
 		// Holds the original text file path
-		//String originalFilePath = getFilePath();
-		String originalFilePath = "/Users/Sandy/Documents/workspace/Lab3/src/TwoCharacterSameFrequency.txt";
-		
+		String originalFilePath = getFilePath();
+
 		// Holds the compressed file path
-		//String compressedFilePath = getFilePath();
-		String compressedFilePath = "/Users/Sandy/Documents/workspace/Lab3/src/TwoCharacterSameFrequency_compressed.txt";
-		
+		String compressedFilePath = getFilePath();
+
 		// Holds the the decompressed file path
-		//String decompressedFilePath = getFilePath();
-		String decompressedFilePath = "/Users/Sandy/Documents/workspace/Lab3/src/TwoCharacterSameFrequency_decompressed.txt";
-		
+		String decompressedFilePath = getFilePath();
+
 		// create a frequency table of the characters in a document
 		Map<String, Integer> table = frequencyTable(originalFilePath);
 
