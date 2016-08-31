@@ -1,0 +1,25 @@
+// private inner class to represent a node in a binary tree with
+// a string character and integer frequency
+public class Node<S, I>{
+	private String character;
+	private Integer frequency;
+
+	public Node(String c, Integer f){
+		character = c;
+		frequency = f;
+	}
+
+	public String getCharacter(){
+		return character;
+	}
+
+	public Integer getFrequency(){
+		return frequency;
+	}
+	
+	@Override
+	public String toString() {
+		String s = character + ":" + frequency;
+		return s;
+	}
+}
